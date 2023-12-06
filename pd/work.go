@@ -7,7 +7,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
 
-	"github.com/wuyyyyou/go-share/share"
+	"github.com/wuyyyyyou/go-share/share"
 )
 
 func (df *DataFrame) updateHeadIndexMap() {
