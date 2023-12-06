@@ -1,4 +1,4 @@
-module github.com/wuyyyyou/go-share
+module github.com/wuyyyyyou/go-share
 
 go 1.19
 
