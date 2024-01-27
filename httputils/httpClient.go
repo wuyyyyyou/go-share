@@ -123,7 +123,7 @@ func (h *HttpClient) SetFormBody(formData map[string]string, formFile map[string
 
 	// 设置请求头Content-Type
 	h.SetHeader("Content-Type", bodyWriter.FormDataContentType())
-	// 设置请求提
+	// 设置请求体
 	h.requestBody = &requestBody
 
 	return nil
@@ -191,6 +191,10 @@ func (h *HttpClient) Post() error {
 
 func (h *HttpClient) GetResponse() *http.Response {
 	return h.response
+}
+
+func (h *HttpClient) GetResponseStatusCode() int {
+	return h.response.StatusCode
 }
 
 func (h *HttpClient) GetBodyBytes() ([]byte, error) {
