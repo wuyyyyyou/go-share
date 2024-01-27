@@ -197,6 +197,10 @@ func (h *HttpClient) GetResponseStatusCode() int {
 	return h.response.StatusCode
 }
 
+func (h *HttpClient) GetResponseHeader() http.Header {
+	return h.response.Header
+}
+
 func (h *HttpClient) GetBodyBytes() ([]byte, error) {
 	return io.ReadAll(h.response.Body)
 }
