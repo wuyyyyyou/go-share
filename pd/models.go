@@ -1,7 +1,7 @@
 package pd
 
 type DataFrame struct {
-	sheetName    string
+	sheetName    *string
 	heads        []string
 	rows         [][]string
 	headIndexMap map[string]int
@@ -12,7 +12,6 @@ func NewDataFrame(Args ...string) *DataFrame {
 		return &DataFrame{
 			heads:        []string{},
 			rows:         [][]string{},
-			sheetName:    "Sheet1",
 			headIndexMap: make(map[string]int),
 		}
 	}
@@ -20,7 +19,7 @@ func NewDataFrame(Args ...string) *DataFrame {
 	return &DataFrame{
 		heads:        []string{},
 		rows:         [][]string{},
-		sheetName:    Args[0],
+		sheetName:    &Args[0],
 		headIndexMap: make(map[string]int),
 	}
 }

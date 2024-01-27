@@ -7,6 +7,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
 
+	"github.com/wuyyyyyou/go-share/ioutils"
 	"github.com/wuyyyyyou/go-share/share"
 )
 
@@ -35,11 +36,15 @@ func (df *DataFrame) GetRows() [][]string {
 }
 
 func (df *DataFrame) GetSheetName() string {
-	return df.sheetName
+	if df.sheetName == nil {
+		panic("sheet name is not set")
+	}
+
+	return *df.sheetName
 }
 
 func (df *DataFrame) SetSheetName(sheetName string) {
-	df.sheetName = sheetName
+	df.sheetName = &sheetName
 }
 
 // GetValue 返回索引处的值，如果索引超出范围，则返回错误，接受head的类型为string或int
@@ -116,15 +121,18 @@ func (df *DataFrame) ReadExcel(src string) error {
 	if err != nil {
 		return err
 	}
-	defer share.CloseAll(file)
+	defer ioutils.CloseQuietly(file)
 
+	if df.sheetName == nil {
+		df.SetSheetName(file.GetSheetList()[0])
+	}
 	rows, err := file.GetRows(df.GetSheetName())
 	if err != nil {
 		return err
 	}
 
 	if len(rows) == 0 {
-		return fmt.Errorf("sheet %s is empty", df.sheetName)
+		return fmt.Errorf("sheet %s is empty", *df.sheetName)
 	}
 
 	df.SetHeads(rows[0])

@@ -27,3 +27,4 @@ go.work
 **/.idea
 
 my_test.go
+./test/
