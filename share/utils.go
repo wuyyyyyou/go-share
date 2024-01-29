@@ -1,7 +1,9 @@
 package share
 
 import (
+	"fmt"
 	"os"
+	"runtime/debug"
 )
 
 // SetSliceValue 设置切片的值，如果索引超出范围，则创建一个新的足够长的切片
@@ -25,4 +27,11 @@ func GetEnv(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func Except() {
+	if err := recover(); err != nil {
+		fmt.Printf("Recovered from panic: %v\n", err)
+		fmt.Printf("Stack trace:\n%s\n", debug.Stack())
+	}
 }

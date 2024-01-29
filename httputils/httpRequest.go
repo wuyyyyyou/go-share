@@ -13,7 +13,7 @@ import (
 	"github.com/wuyyyyyou/go-share/ioutils"
 )
 
-type HttpClient struct {
+type HttpRequest struct {
 	url     string
 	queries map[string]string
 	headers map[string]string
@@ -25,8 +25,8 @@ type HttpClient struct {
 	response    *http.Response
 }
 
-func NewHttpClient(url string) *HttpClient {
-	return &HttpClient{
+func NewHttpRequest(url string) *HttpRequest {
+	return &HttpRequest{
 		url:     url,
 		queries: make(map[string]string),
 		headers: make(map[string]string),
@@ -40,27 +40,27 @@ func NewHttpClient(url string) *HttpClient {
 下面是添加请求参数、头部、Cookie的方法
 */
 
-func (h *HttpClient) SetQueries(queries map[string]string) {
+func (h *HttpRequest) SetQueries(queries map[string]string) {
 	h.queries = queries
 }
 
-func (h *HttpClient) SetQuery(key string, value string) {
+func (h *HttpRequest) SetQuery(key string, value string) {
 	h.queries[key] = value
 }
 
-func (h *HttpClient) SetHeaders(headers map[string]string) {
+func (h *HttpRequest) SetHeaders(headers map[string]string) {
 	h.headers = headers
 }
 
-func (h *HttpClient) SetHeader(key string, value string) {
+func (h *HttpRequest) SetHeader(key string, value string) {
 	h.headers[key] = value
 }
 
-func (h *HttpClient) SetCookies(cookies map[string]string) {
+func (h *HttpRequest) SetCookies(cookies map[string]string) {
 	h.cookies = cookies
 }
 
-func (h *HttpClient) SetCookie(key string, value string) {
+func (h *HttpRequest) SetCookie(key string, value string) {
 	h.cookies[key] = value
 }
 
@@ -69,7 +69,7 @@ func (h *HttpClient) SetCookie(key string, value string) {
 */
 
 // SetTimeout 设置超时时间
-func (h *HttpClient) SetTimeout(time time.Duration) {
+func (h *HttpRequest) SetTimeout(time time.Duration) {
 	h.client.Timeout = time
 }
 
@@ -79,7 +79,7 @@ func (h *HttpClient) SetTimeout(time time.Duration) {
 
 // SetJsonBody 设置请求体为JSON格式
 // 输入json对应的结构体或者map[string]any
-func (h *HttpClient) SetJsonBody(jsonData any) error {
+func (h *HttpRequest) SetJsonBody(jsonData any) error {
 	jsonBytes, err := json.Marshal(jsonData)
 	if err != nil {
 		return err
@@ -90,27 +90,40 @@ func (h *HttpClient) SetJsonBody(jsonData any) error {
 }
 
 // SetFormBody 设置请求体为表单格式
-// 输入 map[string]string 和 map[string]*os.File
-func (h *HttpClient) SetFormBody(formData map[string]string, formFile map[string]*os.File) error {
+// formData包含了form表单的键值对
+// fromFile包含了要输入的文件，键值对中的key对应的是form表单中的name，value对应的是文件的路径
+func (h *HttpRequest) SetFormBody(formData map[string]string, formFile map[string]string) error {
 	// 创建一个buffer用于存储请求体
 	var requestBody bytes.Buffer
 	bodyWriter := multipart.NewWriter(&requestBody)
 	defer ioutils.CloseQuietly(bodyWriter)
 
 	// 添加文件数据
-	for fileKey, file := range formFile {
-		// 添加一个文件
-		fileWriter, err := bodyWriter.CreateFormFile(fileKey, file.Name())
-		if err != nil {
-			return err
-		}
+	for fileKey, filePath := range formFile {
+		err := func() error {
+			file, err := os.Open(filePath)
+			defer ioutils.CloseQuietly(file)
+			if err != nil {
+				return err
+			}
 
-		// 将文件内容写入到请求体中
-		_, err = io.Copy(fileWriter, file)
+			fileWriter, err := bodyWriter.CreateFormFile(fileKey, file.Name())
+			if err != nil {
+				return err
+			}
+
+			// 将文件内容写入到请求体中
+			_, err = io.Copy(fileWriter, file)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
 		if err != nil {
 			return err
 		}
-		ioutils.CloseQuietly(file)
 	}
 
 	// 添加表单数据
@@ -133,7 +146,7 @@ func (h *HttpClient) SetFormBody(formData map[string]string, formFile map[string
 下面的代码用于正式开始http请求
 */
 
-func (h *HttpClient) httpRequest(method string) error {
+func (h *HttpRequest) httpRequest(method string) error {
 	parse, err := url.Parse(h.url)
 	if err != nil {
 		return err
@@ -176,12 +189,12 @@ func (h *HttpClient) httpRequest(method string) error {
 }
 
 // Get 发送GET请求
-func (h *HttpClient) Get() error {
+func (h *HttpRequest) Get() error {
 	return h.httpRequest("GET")
 }
 
 // Post 发送POST请求
-func (h *HttpClient) Post() error {
+func (h *HttpRequest) Post() error {
 	return h.httpRequest("POST")
 }
 
@@ -189,23 +202,23 @@ func (h *HttpClient) Post() error {
 完成请求后，进行的一些操作
 */
 
-func (h *HttpClient) GetResponse() *http.Response {
+func (h *HttpRequest) GetResponse() *http.Response {
 	return h.response
 }
 
-func (h *HttpClient) GetResponseStatusCode() int {
+func (h *HttpRequest) GetResponseStatusCode() int {
 	return h.response.StatusCode
 }
 
-func (h *HttpClient) GetResponseHeader() http.Header {
+func (h *HttpRequest) GetResponseHeader() http.Header {
 	return h.response.Header
 }
 
-func (h *HttpClient) GetBodyBytes() ([]byte, error) {
+func (h *HttpRequest) GetBodyBytes() ([]byte, error) {
 	return io.ReadAll(h.response.Body)
 }
 
-func (h *HttpClient) GetBodyString() (string, error) {
+func (h *HttpRequest) GetBodyString() (string, error) {
 	bodyBytes, err := io.ReadAll(h.response.Body)
 	if err != nil {
 		return "", err
@@ -217,7 +230,7 @@ func (h *HttpClient) GetBodyString() (string, error) {
 清理资源操作
 */
 
-func (h *HttpClient) Close() {
+func (h *HttpRequest) Close() {
 	if h.response != nil {
 		ioutils.CloseQuietly(h.response.Body)
 	}
