@@ -2,6 +2,7 @@ package httputils
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -72,6 +73,13 @@ func (h *HttpRequest) SetCookie(key string, value string) {
 // SetTimeout 设置超时时间
 func (h *HttpRequest) SetTimeout(time time.Duration) {
 	h.client.Timeout = time
+}
+
+// SkipVerify 设置跳过证书验证
+func (h *HttpRequest) SkipVerify() {
+	h.client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
 }
 
 /*

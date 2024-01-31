@@ -28,7 +28,7 @@ func NewDataFrame(Args ...string) *DataFrame {
 	}
 }
 
-// 线程安全的df
+// SyncDataFrame 线程安全的df
 type SyncDataFrame struct {
 	*DataFrame
 	headLock sync.RWMutex
