@@ -242,6 +242,19 @@ func (h *HttpRequest) GetBodyString() (string, error) {
 	return string(bodyBytes), nil
 }
 
+// GetBodyStringEncoding 对请求的编码格式进行检验后返回
+func (h *HttpRequest) GetBodyStringEncoding() (string, error) {
+	bodyBytes, err := io.ReadAll(h.response.Body)
+	if err != nil {
+		return "", err
+	}
+	encodingBodyBytes, err := share.ConvertEncoding(h.response.Header.Get("Content-Type"), bodyBytes)
+	if err != nil {
+		return "", err
+	}
+	return string(encodingBodyBytes), nil
+}
+
 /*
 清理资源操作
 */
