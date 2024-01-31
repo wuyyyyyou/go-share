@@ -50,6 +50,8 @@ func (df *SyncDataFrame) GetValue(rowIndex int, head any) (string, error) {
 
 func (df *SyncDataFrame) SetValue(rowIndex int, head any, value string) error {
 	df.rowLock.Lock()
+	df.headLock.Lock()
+	defer df.headLock.Unlock()
 	defer df.rowLock.Unlock()
 	return df.DataFrame.SetValue(rowIndex, head, value)
 }
@@ -58,6 +60,12 @@ func (df *SyncDataFrame) GetLength() int {
 	df.rowLock.RLock()
 	defer df.rowLock.RUnlock()
 	return df.DataFrame.GetLength()
+}
+
+func (df *SyncDataFrame) UniqueRows() {
+	df.rowLock.Lock()
+	defer df.rowLock.Unlock()
+	df.DataFrame.UniqueRows()
 }
 
 func (df *SyncDataFrame) ReadExcel(src string) error {
