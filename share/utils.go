@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 )
 
 // SetSliceValue 设置切片的值，如果索引超出范围，则创建一个新的足够长的切片
@@ -34,4 +35,11 @@ func Except() {
 		fmt.Printf("Recovered from panic: %v\n", err)
 		fmt.Printf("Stack trace:\n%s\n", debug.Stack())
 	}
+}
+
+func EnsureHttpPrefix(url string) string {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return "http://" + url
+	}
+	return url
 }

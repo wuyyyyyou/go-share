@@ -134,8 +134,15 @@ func (h *HttpRequest) SetFormBody(formData map[string]string, formFile map[strin
 		}
 	}
 
-	// 设置请求头Content-Type
-	h.SetHeader("Content-Type", bodyWriter.FormDataContentType())
+	// 根据 formFile 的长度设置 Content-Type
+	if len(formFile) > 0 {
+		// 设置请求头Content-Type为multipart/form-data
+		h.SetHeader("Content-Type", bodyWriter.FormDataContentType())
+	} else {
+		// 设置请求头Content-Type为application/x-www-form-urlencoded
+		h.SetHeader("Content-Type", "application/x-www-form-urlencoded")
+	}
+
 	// 设置请求体
 	h.requestBody = &requestBody
 
