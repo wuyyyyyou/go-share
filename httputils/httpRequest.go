@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/wuyyyyyou/go-share/ioutils"
+	"github.com/wuyyyyyou/go-share/share"
 )
 
 type HttpRequest struct {
@@ -27,7 +28,7 @@ type HttpRequest struct {
 
 func NewHttpRequest(url string) *HttpRequest {
 	return &HttpRequest{
-		url:     url,
+		url:     share.EnsureHttpPrefix(url),
 		queries: make(map[string]string),
 		headers: make(map[string]string),
 		cookies: make(map[string]string),
