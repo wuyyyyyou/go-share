@@ -70,12 +70,32 @@ func (df *SyncDataFrame) UniqueRows() {
 
 func (df *SyncDataFrame) ReadExcel(src string) error {
 	df.rowLock.Lock()
+	df.headLock.Lock()
+	defer df.headLock.Unlock()
 	defer df.rowLock.Unlock()
 	return df.DataFrame.ReadExcel(src)
 }
 
 func (df *SyncDataFrame) SaveExcel(dst string) error {
 	df.rowLock.RLock()
+	df.headLock.Lock()
+	defer df.headLock.Unlock()
 	defer df.rowLock.RUnlock()
 	return df.DataFrame.SaveExcel(dst)
+}
+
+func (df *SyncDataFrame) ReadCsv(src string) error {
+	df.rowLock.Lock()
+	df.headLock.Lock()
+	defer df.headLock.Unlock()
+	defer df.rowLock.Unlock()
+	return df.DataFrame.ReadCsv(src)
+}
+
+func (df *SyncDataFrame) SaveCsv(dst string) error {
+	df.rowLock.RLock()
+	df.headLock.Lock()
+	defer df.headLock.Unlock()
+	defer df.rowLock.RUnlock()
+	return df.DataFrame.SaveCsv(dst)
 }

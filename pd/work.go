@@ -1,7 +1,9 @@
 package pd
 
 import (
+	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/samber/lo"
@@ -170,4 +172,47 @@ func (df *DataFrame) SaveExcel(dst string) error {
 	}
 
 	return file.SaveAs(dst)
+}
+
+func (df *DataFrame) ReadCsv(src string) error {
+	file, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer ioutils.CloseQuietly(file)
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	if len(records) == 0 {
+		return fmt.Errorf("csv file is empty")
+	}
+
+	df.SetHeads(records[0])
+	df.SetRows(records[1:])
+	return nil
+}
+
+func (df *DataFrame) SaveCsv(dst string) error {
+	file, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer ioutils.CloseQuietly(file)
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	if err := writer.Write(df.heads); err != nil {
+		return err
+	}
+
+	if err := writer.WriteAll(df.rows); err != nil {
+		return err
+	}
+
+	return nil
 }

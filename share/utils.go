@@ -2,6 +2,8 @@ package share
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -81,4 +83,15 @@ func ConvertEncoding(contentType string, body []byte) ([]byte, error) {
 
 	// 如果没有特殊编码处理，则原样返回
 	return body, nil
+}
+
+// SHA256 SHA256哈希，返回32位字节切片
+func SHA256(data []byte) []byte {
+	hash := sha256.Sum256(data)
+	return hash[:]
+}
+
+// SHA256ToString SHA256哈希，返回64为长度字符串
+func SHA256ToString(data []byte) string {
+	return hex.EncodeToString(SHA256(data))
 }
