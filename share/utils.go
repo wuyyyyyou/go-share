@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -94,4 +95,27 @@ func SHA256(data []byte) []byte {
 // SHA256ToString SHA256哈希，返回64为长度字符串
 func SHA256ToString(data []byte) string {
 	return hex.EncodeToString(SHA256(data))
+}
+
+// MapToStruct 将 map 转换为指定的结构体
+func MapToStruct(m map[string]any, result any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, result)
+}
+
+// StructToMap 将结构体转换为 map
+func StructToMap(obj any) (map[string]any, error) {
+	result := make(map[string]any)
+	jsonData, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jsonData, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
