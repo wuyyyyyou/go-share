@@ -151,6 +151,13 @@ func (df *DataFrame) SaveExcel(dst string) error {
 	}
 	file.SetActiveSheet(index)
 
+	if df.GetSheetName() != "Sheet1" {
+		err := file.DeleteSheet("Sheet1")
+		if err != nil {
+			return err
+		}
+	}
+
 	for i, head := range df.GetHeads() {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 
