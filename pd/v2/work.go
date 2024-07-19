@@ -2,6 +2,7 @@ package pd
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/samber/lo"
@@ -92,6 +93,72 @@ func (df *DataFrame) SetValue(rowIndex int, head any, value string) error {
 	default:
 		return fmt.Errorf("head type %T not supported", head)
 	}
+}
+
+// AutoFillStruct sheet内容自动填充到结构体中，输入要求是一个结构体指针的切片的指针
+func (df *DataFrame) AutoFillStruct(dest any) error {
+	destVal := reflect.ValueOf(dest)
+	if destVal.Kind() != reflect.Ptr || destVal.Elem().Kind() != reflect.Slice {
+		return fmt.Errorf("outSlice must be a pointer to a slice")
+	}
+
+	elemType := destVal.Elem().Type().Elem()
+	if elemType.Kind() != reflect.Ptr || elemType.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("outSlice must be a slice of pointer to struct")
+	}
+
+	for i := 0; i < df.GetLength(); i++ {
+		newStructPtr := reflect.New(elemType.Elem())
+		newStruct := newStructPtr.Elem()
+		for j := 0; j < newStruct.NumField(); j++ {
+			field := newStruct.Type().Field(j)
+			columnName := field.Tag.Get("pd")
+			if columnName == "" {
+				continue
+			}
+
+			fieldValue := newStruct.Field(j)
+			if !fieldValue.CanSet() {
+				return fmt.Errorf("cannot set field %s", field.Name)
+			}
+
+			value, _ := df.GetValue(i, columnName)
+			fieldValue.SetString(value)
+		}
+		destVal.Elem().Set(reflect.Append(destVal.Elem(), newStructPtr))
+	}
+
+	return nil
+}
+
+// AutoFillSheet 结构体内容填充到excel表格中，会覆盖原本的内容，输入要求是一个结构体指针切片
+func (df *DataFrame) AutoFillSheet(dest any) error {
+	df.SetRows([][]string{})
+	destVal := reflect.ValueOf(dest)
+	if destVal.Kind() != reflect.Slice {
+		return fmt.Errorf("inputSlice must be a slice")
+	}
+
+	elemType := destVal.Type().Elem()
+	if elemType.Kind() != reflect.Ptr || elemType.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("inputSlice must be a slice of pointer to struct")
+	}
+
+	for i := 0; i < destVal.Len(); i++ {
+		elemVal := destVal.Index(i).Elem()
+		for j := 0; j < elemVal.NumField(); j++ {
+			field := elemVal.Type().Field(j)
+			columnName := field.Tag.Get("pd")
+			if columnName == "" {
+				continue
+			}
+			fileValue := elemVal.Field(j)
+			inputVal := fileValue.String()
+			_ = df.SetValue(i, columnName, inputVal)
+		}
+	}
+
+	return nil
 }
 
 func (df *DataFrame) GetLength() int {
