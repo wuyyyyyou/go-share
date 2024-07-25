@@ -3,7 +3,9 @@ package pd
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
@@ -110,20 +112,8 @@ func (df *DataFrame) AutoFillStruct(dest any) error {
 	for i := 0; i < df.GetLength(); i++ {
 		newStructPtr := reflect.New(elemType.Elem())
 		newStruct := newStructPtr.Elem()
-		for j := 0; j < newStruct.NumField(); j++ {
-			field := newStruct.Type().Field(j)
-			columnName := field.Tag.Get("pd")
-			if columnName == "" {
-				continue
-			}
-
-			fieldValue := newStruct.Field(j)
-			if !fieldValue.CanSet() {
-				return fmt.Errorf("cannot set field %s", field.Name)
-			}
-
-			value, _ := df.GetValue(i, columnName)
-			fieldValue.SetString(value)
+		if err := df.fillStructFromSheet(i, newStruct, ""); err != nil {
+			return err
 		}
 		destVal.Elem().Set(reflect.Append(destVal.Elem(), newStructPtr))
 	}
@@ -131,9 +121,90 @@ func (df *DataFrame) AutoFillStruct(dest any) error {
 	return nil
 }
 
+// fillStructFromSheet 递归处理嵌套结构体的字段
+func (df *DataFrame) fillStructFromSheet(rowIndex int, val reflect.Value, prefix string) error {
+	valType := val.Type()
+	for j := 0; j < valType.NumField(); j++ {
+		field := valType.Field(j)
+		fieldVal := val.Field(j)
+
+		if field.Anonymous {
+			if err := df.fillStructFromSheet(rowIndex, fieldVal, prefix); err != nil {
+				return err
+			}
+			continue
+		}
+
+		columnName := field.Tag.Get("pd")
+		if columnName == "" {
+			continue
+		}
+
+		// 处理带前缀的标签名
+		if prefix != "" {
+			columnName = prefix + "_" + columnName
+		}
+
+		value, err := df.GetValue(rowIndex, columnName)
+		if err != nil {
+			return err
+		}
+
+		if !fieldVal.CanSet() {
+			return fmt.Errorf("cannot set field %s", field.Name)
+		}
+
+		switch fieldVal.Kind() {
+		case reflect.String:
+			fieldVal.SetString(value)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			intVal, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return err
+			}
+			fieldVal.SetInt(intVal)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			uintVal, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return err
+			}
+			fieldVal.SetUint(uintVal)
+		case reflect.Float32, reflect.Float64:
+			floatVal, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return err
+			}
+			fieldVal.SetFloat(floatVal)
+		case reflect.Bool:
+			boolVal, err := strconv.ParseBool(value)
+			if err != nil {
+				return err
+			}
+			fieldVal.SetBool(boolVal)
+		case reflect.Struct:
+			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
+				timeVal, err := time.Parse(time.RFC3339, value)
+				if err != nil {
+					return err
+				}
+				fieldVal.Set(reflect.ValueOf(timeVal))
+			} else {
+				if err := df.fillStructFromSheet(rowIndex, fieldVal, columnName); err != nil {
+					return err
+				}
+				continue
+			}
+		default:
+			return fmt.Errorf("unsupported field type: %v", fieldVal.Kind())
+		}
+	}
+	return nil
+}
+
 // AutoFillSheet 结构体内容填充到excel表格中，会覆盖原本的内容，输入要求是一个结构体指针切片
 func (df *DataFrame) AutoFillSheet(dest any) error {
 	df.SetRows([][]string{})
+	df.SetHeads([]string{})
 	destVal := reflect.ValueOf(dest)
 	if destVal.Kind() != reflect.Slice {
 		return fmt.Errorf("inputSlice must be a slice")
@@ -146,18 +217,67 @@ func (df *DataFrame) AutoFillSheet(dest any) error {
 
 	for i := 0; i < destVal.Len(); i++ {
 		elemVal := destVal.Index(i).Elem()
-		for j := 0; j < elemVal.NumField(); j++ {
-			field := elemVal.Type().Field(j)
-			columnName := field.Tag.Get("pd")
-			if columnName == "" {
-				continue
-			}
-			fileValue := elemVal.Field(j)
-			inputVal := fileValue.String()
-			_ = df.SetValue(i, columnName, inputVal)
+		if err := df.fillStructFields(i, elemVal, ""); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// fillStructFields 递归处理嵌套结构体的字段
+func (df *DataFrame) fillStructFields(rowIndex int, val reflect.Value, prefix string) error {
+	valType := val.Type()
+	for j := 0; j < valType.NumField(); j++ {
+		field := valType.Field(j)
+		fieldVal := val.Field(j)
+
+		if field.Anonymous {
+			if err := df.fillStructFields(rowIndex, fieldVal, prefix); err != nil {
+				return err
+			}
+			continue
+		}
+
+		columnName := field.Tag.Get("pd")
+		if columnName == "" {
+			continue
+		}
+
+		// 处理带前缀的标签名
+		if prefix != "" {
+			columnName = prefix + "_" + columnName
+		}
+
+		var inputVal string
+		switch fieldVal.Kind() {
+		case reflect.String:
+			inputVal = fieldVal.String()
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			inputVal = strconv.FormatInt(fieldVal.Int(), 10)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			inputVal = strconv.FormatUint(fieldVal.Uint(), 10)
+		case reflect.Float32, reflect.Float64:
+			inputVal = strconv.FormatFloat(fieldVal.Float(), 'f', -1, 64)
+		case reflect.Bool:
+			inputVal = strconv.FormatBool(fieldVal.Bool())
+		case reflect.Struct:
+			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
+				inputVal = fieldVal.Interface().(time.Time).Format(time.RFC3339)
+			} else {
+				if err := df.fillStructFields(rowIndex, fieldVal, columnName); err != nil {
+					return err
+				}
+				continue
+			}
+		default:
+			return fmt.Errorf("unsupported field type: %v", fieldVal.Kind())
+		}
+
+		if err := df.SetValue(rowIndex, columnName, inputVal); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -169,6 +289,17 @@ func (df *DataFrame) UniqueRows() {
 	df.rows = lo.UniqBy(df.rows, func(slice []string) string {
 		return strings.Join(slice, "\x1F")
 	})
+}
+
+func (e *Excel) AppendSheet(df *DataFrame) {
+	sheetName := df.sheetName
+	if sheetName == "" {
+		sheetName = "Sheet1"
+	}
+	if !lo.Contains(e.SheetNames, sheetName) {
+		e.SheetNames = append(e.SheetNames, sheetName)
+	}
+	e.DataFramesMap[sheetName] = df
 }
 
 func (e *Excel) ReadExcelAllSheet(src string) error {
