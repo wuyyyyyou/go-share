@@ -151,61 +151,28 @@ func (df *DataFrame) fillStructFromSheet(rowIndex int, val reflect.Value, prefix
 
 		switch fieldVal.Kind() {
 		case reflect.String:
-			value, err := df.GetValue(rowIndex, columnName)
-			if err != nil {
-				return err
-			}
+			value, _ := df.GetValue(rowIndex, columnName)
 			fieldVal.SetString(value)
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			value, err := df.GetValue(rowIndex, columnName)
-			if err != nil {
-				return err
-			}
-			intVal, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return err
-			}
+			value, _ := df.GetValue(rowIndex, columnName)
+			intVal, _ := strconv.ParseInt(value, 10, 64)
 			fieldVal.SetInt(intVal)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			value, err := df.GetValue(rowIndex, columnName)
-			if err != nil {
-				return err
-			}
-			uintVal, err := strconv.ParseUint(value, 10, 64)
-			if err != nil {
-				return err
-			}
+			value, _ := df.GetValue(rowIndex, columnName)
+			uintVal, _ := strconv.ParseUint(value, 10, 64)
 			fieldVal.SetUint(uintVal)
 		case reflect.Float32, reflect.Float64:
-			value, err := df.GetValue(rowIndex, columnName)
-			if err != nil {
-				return err
-			}
-			floatVal, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				return err
-			}
+			value, _ := df.GetValue(rowIndex, columnName)
+			floatVal, _ := strconv.ParseFloat(value, 64)
 			fieldVal.SetFloat(floatVal)
 		case reflect.Bool:
-			value, err := df.GetValue(rowIndex, columnName)
-			if err != nil {
-				return err
-			}
-			boolVal, err := strconv.ParseBool(value)
-			if err != nil {
-				return err
-			}
+			value, _ := df.GetValue(rowIndex, columnName)
+			boolVal, _ := strconv.ParseBool(value)
 			fieldVal.SetBool(boolVal)
 		case reflect.Struct:
 			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
-				value, err := df.GetValue(rowIndex, columnName)
-				if err != nil {
-					return err
-				}
-				timeVal, err := time.Parse(time.RFC3339, value)
-				if err != nil {
-					return err
-				}
+				value, _ := df.GetValue(rowIndex, columnName)
+				timeVal, _ := time.Parse(time.RFC3339, value)
 				fieldVal.Set(reflect.ValueOf(timeVal))
 			} else {
 				if err := df.fillStructFromSheet(rowIndex, fieldVal, columnName); err != nil {
