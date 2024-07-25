@@ -145,37 +145,52 @@ func (df *DataFrame) fillStructFromSheet(rowIndex int, val reflect.Value, prefix
 			columnName = prefix + "_" + columnName
 		}
 
-		value, err := df.GetValue(rowIndex, columnName)
-		if err != nil {
-			return err
-		}
-
 		if !fieldVal.CanSet() {
 			return fmt.Errorf("cannot set field %s", field.Name)
 		}
 
 		switch fieldVal.Kind() {
 		case reflect.String:
+			value, err := df.GetValue(rowIndex, columnName)
+			if err != nil {
+				return err
+			}
 			fieldVal.SetString(value)
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			value, err := df.GetValue(rowIndex, columnName)
+			if err != nil {
+				return err
+			}
 			intVal, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				return err
 			}
 			fieldVal.SetInt(intVal)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			value, err := df.GetValue(rowIndex, columnName)
+			if err != nil {
+				return err
+			}
 			uintVal, err := strconv.ParseUint(value, 10, 64)
 			if err != nil {
 				return err
 			}
 			fieldVal.SetUint(uintVal)
 		case reflect.Float32, reflect.Float64:
+			value, err := df.GetValue(rowIndex, columnName)
+			if err != nil {
+				return err
+			}
 			floatVal, err := strconv.ParseFloat(value, 64)
 			if err != nil {
 				return err
 			}
 			fieldVal.SetFloat(floatVal)
 		case reflect.Bool:
+			value, err := df.GetValue(rowIndex, columnName)
+			if err != nil {
+				return err
+			}
 			boolVal, err := strconv.ParseBool(value)
 			if err != nil {
 				return err
@@ -183,6 +198,10 @@ func (df *DataFrame) fillStructFromSheet(rowIndex int, val reflect.Value, prefix
 			fieldVal.SetBool(boolVal)
 		case reflect.Struct:
 			if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
+				value, err := df.GetValue(rowIndex, columnName)
+				if err != nil {
+					return err
+				}
 				timeVal, err := time.Parse(time.RFC3339, value)
 				if err != nil {
 					return err
@@ -190,6 +209,16 @@ func (df *DataFrame) fillStructFromSheet(rowIndex int, val reflect.Value, prefix
 				fieldVal.Set(reflect.ValueOf(timeVal))
 			} else {
 				if err := df.fillStructFromSheet(rowIndex, fieldVal, columnName); err != nil {
+					return err
+				}
+				continue
+			}
+		case reflect.Ptr:
+			if fieldVal.Type().Elem().Kind() == reflect.Struct {
+				if fieldVal.IsNil() {
+					fieldVal.Set(reflect.New(fieldVal.Type().Elem()))
+				}
+				if err := df.fillStructFromSheet(rowIndex, fieldVal.Elem(), columnName); err != nil {
 					return err
 				}
 				continue
@@ -270,6 +299,16 @@ func (df *DataFrame) fillStructFields(rowIndex int, val reflect.Value, prefix st
 				}
 				continue
 			}
+		case reflect.Ptr:
+			if fieldVal.Type().Elem().Kind() == reflect.Struct {
+				if fieldVal.IsNil() {
+					fieldVal.Set(reflect.New(fieldVal.Type().Elem()))
+				}
+				if err := df.fillStructFields(rowIndex, fieldVal.Elem(), columnName); err != nil {
+					return err
+				}
+				continue
+			}
 		default:
 			return fmt.Errorf("unsupported field type: %v", fieldVal.Kind())
 		}
@@ -291,15 +330,17 @@ func (df *DataFrame) UniqueRows() {
 	})
 }
 
-func (e *Excel) AppendSheet(df *DataFrame) {
-	sheetName := df.sheetName
-	if sheetName == "" {
-		sheetName = "Sheet1"
+func (e *Excel) AppendSheet(dfs ...*DataFrame) {
+	for _, df := range dfs {
+		sheetName := df.sheetName
+		if sheetName == "" {
+			sheetName = "Sheet1"
+		}
+		if !lo.Contains(e.SheetNames, sheetName) {
+			e.SheetNames = append(e.SheetNames, sheetName)
+		}
+		e.DataFramesMap[sheetName] = df
 	}
-	if !lo.Contains(e.SheetNames, sheetName) {
-		e.SheetNames = append(e.SheetNames, sheetName)
-	}
-	e.DataFramesMap[sheetName] = df
 }
 
 func (e *Excel) ReadExcelAllSheet(src string) error {
