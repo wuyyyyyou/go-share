@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"runtime/debug"
 	"strings"
 
@@ -118,4 +119,27 @@ func StructToMap(obj any) (map[string]any, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// TrimStructStrings 接受一个结构体指针，对所有 string 字段进行 TrimSpace 操作
+func TrimStructStrings(s any) error {
+	val := reflect.ValueOf(s)
+	if val.Kind() != reflect.Ptr {
+		return fmt.Errorf("the input is not a pointer")
+	}
+	val = val.Elem()
+	if val.Kind() != reflect.Struct {
+		return fmt.Errorf("the input is not a struct pointer")
+	}
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		// 如果字段是字符串类型，并且可以修改
+		if field.Kind() == reflect.String && field.CanSet() {
+			trimmed := strings.TrimSpace(field.String())
+			field.SetString(trimmed)
+		}
+	}
+
+	return nil
 }
